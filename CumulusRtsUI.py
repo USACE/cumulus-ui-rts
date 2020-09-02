@@ -478,9 +478,7 @@ class CumulusUI(javax.swing.JFrame):
                     urlconnect.getInputStream()
                 )
             )
-            s = list()
-            while br.readLine():
-                s.append(br.readLine())
+            s = br.readLine()
             br.close()
         except java.io.IOException as ex:
             raise Exception(ex)
