@@ -15,9 +15,21 @@ import subprocess
 # HEC
 import hec
 from hec.heclib.util import HecTime
+
+# Some constants
 true = hec.script.Constants.TRUE
 false = hec.script.Constants.FALSE
+script_name = "CumulusRtsUI.py"                                 # This script name because __file__ doesn't work in CAVI env
+url_basins = "https://api.rsgis.dev/development/cumulus/basins"
+url_products = "https://api.rsgis.dev/development/cumulus/products"
 
+'''Try importing hec2 package.  An exception is thrown if not in CWMS CAVI or
+RTS CAVI.  This will determine if this script runs in the CAVI or other environment.
+ClientAppCheck.haveClientApp() was tried but does not provide expected results.
+
+If we are not in the CAVI environment, then we need to get the provided arguments
+from this script because we will call it again outsid the CAVI environment.
+'''
 try:
     import hec2
     cavi_env = true
@@ -25,10 +37,6 @@ except ImportError as ex:
     print ex
     cavi_env = false
 
-script_name = "CumulusRtsUI.py"
-
-basins_url = "https://api.rsgis.dev/development/cumulus/basins"
-products_url = "https://api.rsgis.dev/development/cumulus/products"
 
 # CAVI Status class
 class CaviStatus():
@@ -228,7 +236,6 @@ class FileChooser(javax.swing.JFileChooser):
             f.write(selected_file)
         self.output_path.setText(selected_file)
 
-
 # Cumulus UI class
 class CumulusUI(javax.swing.JFrame):
     '''Java Swing used to create a JFrame UI.  On init the objects will be
@@ -252,16 +259,18 @@ class CumulusUI(javax.swing.JFrame):
                 if _path:
                     self.dss_path = _path
 
-        # Get the basins, load JSON, create list for JList, and create watershed dictionary
-        self.basin_download = json.loads(self.get_basins())
+        # Get the basins and products, load JSON, create lists for JList, and create dictionaries
+        self.basin_download = json.loads(self.get_json(url_basins))        
         self.jlist_basins = ["{}:{}".format(b['office_symbol'], b['name']) for b in self.basin_download]
         self.basin_meta = dict(zip(self.jlist_basins, self.basin_download))
         self.jlist_basins.sort()
 
+        self.product_download = json.loads(self.get_json(url_products))
+        self.jlist_products = ["{}".format(p['name'].replace("_", " ").title()) for p in self.product_download]
+        self.product_meta = dict(zip(self.jlist_products, self.product_download))
+        self.jlist_products.sort()
+
         btn_submit = javax.swing.JButton()
-        self.chk_ncep_rtma_precip = javax.swing.JCheckBox()
-        self.chk_ncep_rtma_airtemp = javax.swing.JCheckBox()
-        self.chk_nohrsc_snodas_snowdepth = javax.swing.JCheckBox()
         lbl_start_date = javax.swing.JLabel()
         lbl_end_date = javax.swing.JLabel()
         self.txt_select_file = javax.swing.JTextField()
@@ -272,7 +281,6 @@ class CumulusUI(javax.swing.JFrame):
         self.txt_originy = javax.swing.JTextField()
         self.txt_extentx = javax.swing.JTextField()
         self.txt_extenty = javax.swing.JTextField()
-        lbl_product = javax.swing.JLabel()
         lbl_select_file = javax.swing.JLabel()
         comma1 = javax.swing.JLabel()
         comma2 = javax.swing.JLabel()
@@ -282,29 +290,31 @@ class CumulusUI(javax.swing.JFrame):
         paren_r2 = javax.swing.JLabel()
         self.txt_start_time = javax.swing.JTextField()
         self.txt_end_time = javax.swing.JTextField()
+
         jScrollPane1 = javax.swing.JScrollPane()
+        self.lst_product = javax.swing.JList()
+        self.lst_product = javax.swing.JList(self.jlist_products, valueChanged = self.choose_product)
+        
+        jScrollPane2 = javax.swing.JScrollPane()
+        self.lst_watershed = javax.swing.JList()
         self.lst_watershed = javax.swing.JList(self.jlist_basins, valueChanged = self.choose_watershed)
 
         self.setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE)
+        self.setTitle("Cumulus CAVI UI")
         self.setLocation(java.awt.Point(10, 10))
         self.setLocationByPlatform(true)
-        self.setTitle("CumulusCaviUi")
+        self.setName("CumulusCaviUi")
         self.setResizable(false)
 
         btn_submit.setFont(java.awt.Font("Tahoma", 0, 18))
         btn_submit.setText("Submit")
         btn_submit.actionPerformed = self.submit
 
-        self.chk_ncep_rtma_precip.setText("NCEP RTMA Precipitation")
-
-        self.chk_ncep_rtma_airtemp.setText("NCEP RTMA Airtemp")
-
-        self.chk_nohrsc_snodas_snowdepth.setText("SNODAS Snow Depth")
-
         lbl_start_date.setText("Start Date/Time")
 
         lbl_end_date.setText("End Date/Time")
 
+        self.txt_select_file.setText("C:\\projects\\CWMS\\database\\grid.dss")
         self.txt_select_file.setToolTipText("FQPN to output file (.dss)")
 
         btn_select_file.setText("...")
@@ -323,8 +333,6 @@ class CumulusUI(javax.swing.JFrame):
 
         self.txt_extenty.setToolTipText("Extent Y")
 
-        lbl_product.setText("Products")
-
         lbl_select_file.setText("Output File Location")
 
         comma1.setFont(java.awt.Font("Tahoma", 0, 12))
@@ -341,78 +349,73 @@ class CumulusUI(javax.swing.JFrame):
 
         paren_r2.setText(")")
 
-        self.txt_start_time.setText("2020-12-16 12:00:00")
         self.txt_start_time.setToolTipText("Start Time (yyyy-mm-ddThh:mm:ss)")
-
-        self.txt_end_time.setText("2020-12-16 12:00:00")
         self.txt_end_time.setToolTipText("End Time")
+
+        self.lst_product.setBorder(javax.swing.BorderFactory.createTitledBorder(None, "Available Products", javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.TOP, java.awt.Font("Tahoma", 0, 14)))
+        self.lst_product.setFont(java.awt.Font("Tahoma", 0, 14))
+        jScrollPane1.setViewportView(self.lst_product)
+        self.lst_product.getAccessibleContext().setAccessibleName("Available Products")
+        self.lst_product.getAccessibleContext().setAccessibleParent(jScrollPane2)
 
         self.lst_watershed.setBorder(javax.swing.BorderFactory.createTitledBorder(None, "Available Watersheds", javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.TOP, java.awt.Font("Tahoma", 0, 14)))
         self.lst_watershed.setFont(java.awt.Font("Tahoma", 0, 14))
-
         self.lst_watershed.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION)
-        jScrollPane1.setViewportView(self.lst_watershed)
+        jScrollPane2.setViewportView(self.lst_watershed)
 
         layout = javax.swing.GroupLayout(self.getContentPane())
         self.getContentPane().setLayout(layout)
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap(25, Short.MAX_VALUE)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(286, 286, 286)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(lbl_select_file)
+                    .addComponent(jScrollPane1)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addComponent(paren_l1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(lbl_origin)
                             .addGroup(layout.createSequentialGroup()
-                                .addComponent(lbl_end_date)
-                                .addGap(137, 137, 137))
-                            .addComponent(self.txt_end_time, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addComponent(self.txt_originx, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(comma1, javax.swing.GroupLayout.PREFERRED_SIZE, 5, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(self.txt_originy, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(paren_r1)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(paren_l2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(lbl_extent)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(self.txt_extentx, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(comma2)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(self.txt_extenty, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(paren_r2))))
+                    .addComponent(jScrollPane2)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(btn_submit)
+                            .addComponent(self.txt_select_file, javax.swing.GroupLayout.PREFERRED_SIZE, 377, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btn_select_file))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(lbl_start_date)
+                            .addComponent(self.txt_start_time, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(layout.createSequentialGroup()
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(btn_submit)
-                                    .addComponent(self.txt_select_file, javax.swing.GroupLayout.PREFERRED_SIZE, 425, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(btn_select_file))
-                            .addComponent(lbl_select_file)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(paren_l1)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(lbl_origin)
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addComponent(self.txt_originx, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(comma1, javax.swing.GroupLayout.PREFERRED_SIZE, 5, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(self.txt_originy, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(paren_r1)))
-                                .addGap(105, 105, 105)
-                                .addComponent(paren_l2)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(lbl_extent)
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addComponent(self.txt_extentx, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(comma2)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(self.txt_extenty, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(paren_r2))))
-                            .addComponent(self.txt_start_time, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 305, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(18, 18, 18)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(self.chk_nohrsc_snodas_snowdepth)
-                                    .addComponent(self.chk_ncep_rtma_precip)
-                                    .addComponent(self.chk_ncep_rtma_airtemp)
-                                    .addComponent(lbl_product))))
-                        .addGap(25, 25, 25))))
+                                .addComponent(lbl_end_date)
+                                .addGap(70, 70, 70))
+                            .addComponent(self.txt_end_time, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         )
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -425,17 +428,8 @@ class CumulusUI(javax.swing.JFrame):
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(self.txt_start_time, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(self.txt_end_time, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(30, 30, 30)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(lbl_product)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(self.chk_ncep_rtma_precip)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(self.chk_nohrsc_snodas_snowdepth, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(self.chk_ncep_rtma_airtemp))
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 201, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 201, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createSequentialGroup()
@@ -456,15 +450,17 @@ class CumulusUI(javax.swing.JFrame):
                             .addComponent(comma1)
                             .addComponent(paren_l1)
                             .addComponent(paren_r1))))
+                .addGap(39, 39, 39)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 201, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, Short.MAX_VALUE)
                 .addComponent(lbl_select_file)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(self.txt_select_file, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btn_select_file))
-                .addGap(26, 26, 26)
+                .addGap(18, 18, 18)
                 .addComponent(btn_submit)
-                .addGap(25, 25, 25))
+                .addContainerGap())
         )
         self.txt_select_file.setText(self.dss_path)
         self.txt_start_time.setText(self.start_time)
@@ -473,16 +469,28 @@ class CumulusUI(javax.swing.JFrame):
         self.pack()
         self.setLocationRelativeTo(None)
 
-    def get_basins(self):
-        urlconnect = java.net.URL(basins_url).openConnection()
-        br = java.io.BufferedReader(
-            java.io.InputStreamReader(
-                urlconnect.getInputStream()
+    def get_json(self, url):
+        try:
+            urlconnect = java.net.URL(url).openConnection()
+            br = java.io.BufferedReader(
+                java.io.InputStreamReader(
+                    urlconnect.getInputStream()
+                )
             )
-        )
-        s = br.readLine()
-        br.close()
+            s = br.readLine()
+            br.close()
+        except java.io.IOException as ex:
+            raise Exception(ex)
         return s
+
+    def choose_product(self, event):
+        '''The event here is a javax.swing.event.ListSelectionEvent because
+        is comes from a Jlist.  Use getValueIsAdjusting() to only get the
+        mouse up value.
+        '''
+        index = self.lst_product.selectedIndex
+        if not event.getValueIsAdjusting():
+            print self.product_meta[self.lst_product.getSelectedValue()]
 
     def choose_watershed(self, event):
         '''The event here is a javax.swing.event.ListSelectionEvent because
@@ -497,25 +505,31 @@ class CumulusUI(javax.swing.JFrame):
             self.txt_extentx.setText(str(_dict['x_max']))
             self.txt_extenty.setText(str(_dict['y_max']))
 
-    def submit(self, event):
-        pass
-
     def select_file(self, event):
+        '''Provide the user a JFileChooser to select the DSS file data is to download to.
+
+        event is a java.awt.event.ActionEvent
+        '''
         fc = FileChooser(self.txt_select_file)
         fc.title = "Select Output DSS File"
         _dir = os.path.dirname(self.dss_path)
         fc.set_current_dir(java.io.File(_dir))
         fc.show()
 
+    def submit(self, event):
+        '''Collect user inputs and initiate download of DSS files to process.
+
+        event is a java.awt.event.ActionEvent
+        '''
+        print self.start_time
+        print self.end_time
+        print self.lst_watershed.getSelectedValue()
+        print self.lst_product.getSelectedValues()
+
 def main():
-    '''Try importing hec2 package.  An exception is thrown if not in CWMS CAVI or
-    RTS CAVI.  This will determine if this script runs in the CAVI or other environment.
-    ClientAppCheck.haveClientApp() was tried but does not provide expected results.
-
-    If we are not in the CAVI environment, then we need to get the provided arguments
-    from this script because we will call it again outsid the CAVI environment.
+    ''' The main section to determine is the script is executed within or
+    outside of the CAVI environment
     '''
-
     if cavi_env:                                                                # This is all the stuff to do if in the CAVI
         tw = CaviStatus().get_timewindow()
         if tw == None:
@@ -550,7 +564,6 @@ def main():
 
         cui = CumulusUI(ordered_dict)
         cui.setVisible(true)
-
 
 if __name__ == "__main__":
     # DELETE THIS LIST.  ONLY FOR TESTING

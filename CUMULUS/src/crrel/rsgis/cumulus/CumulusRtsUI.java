@@ -28,9 +28,6 @@ public class CumulusRtsUI extends javax.swing.JFrame {
     private void initComponents() {
 
         btn_submit = new javax.swing.JButton();
-        chk_ncep_rtma_precip = new javax.swing.JCheckBox();
-        chk_ncep_rtma_airtemp = new javax.swing.JCheckBox();
-        chk_nohrsc_snodas_snowdepth = new javax.swing.JCheckBox();
         lbl_start_date = new javax.swing.JLabel();
         lbl_end_date = new javax.swing.JLabel();
         txt_select_file = new javax.swing.JTextField();
@@ -41,7 +38,6 @@ public class CumulusRtsUI extends javax.swing.JFrame {
         txt_originy = new javax.swing.JTextField();
         txt_extentx = new javax.swing.JTextField();
         txt_extenty = new javax.swing.JTextField();
-        lbl_product = new javax.swing.JLabel();
         lbl_select_file = new javax.swing.JLabel();
         comma1 = new javax.swing.JLabel();
         comma2 = new javax.swing.JLabel();
@@ -52,6 +48,8 @@ public class CumulusRtsUI extends javax.swing.JFrame {
         txt_start_time = new javax.swing.JTextField();
         txt_end_time = new javax.swing.JTextField();
         jScrollPane1 = new javax.swing.JScrollPane();
+        lst_products = new javax.swing.JList();
+        jScrollPane2 = new javax.swing.JScrollPane();
         lst_watershed = new javax.swing.JList();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
@@ -64,12 +62,6 @@ public class CumulusRtsUI extends javax.swing.JFrame {
         btn_submit.setFont(new java.awt.Font("Tahoma", 0, 18)); // NOI18N
         btn_submit.setText("Submit");
         btn_submit.setActionCommand("submit");
-
-        chk_ncep_rtma_precip.setText("NCEP RTMA Precipitation");
-
-        chk_ncep_rtma_airtemp.setText("NCEP RTMA Airtemp");
-
-        chk_nohrsc_snodas_snowdepth.setText("SNODAS Snow Depth");
 
         lbl_start_date.setText("Start Date/Time");
 
@@ -93,8 +85,6 @@ public class CumulusRtsUI extends javax.swing.JFrame {
 
         txt_extenty.setToolTipText("Extent Y");
 
-        lbl_product.setText("Products");
-
         lbl_select_file.setText("Output File Location");
 
         comma1.setFont(new java.awt.Font("Tahoma", 0, 12)); // NOI18N
@@ -117,71 +107,70 @@ public class CumulusRtsUI extends javax.swing.JFrame {
         txt_end_time.setText("2020-12-16 12:00:00");
         txt_end_time.setToolTipText("End Time");
 
+        lst_products.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Available Products", javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.TOP, new java.awt.Font("Tahoma", 0, 14))); // NOI18N
+        lst_products.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
+        jScrollPane1.setViewportView(lst_products);
+        lst_products.getAccessibleContext().setAccessibleName("Available Products");
+        lst_products.getAccessibleContext().setAccessibleParent(jScrollPane2);
+
         lst_watershed.setBorder(javax.swing.BorderFactory.createTitledBorder(null, "Available Watersheds", javax.swing.border.TitledBorder.CENTER, javax.swing.border.TitledBorder.TOP, new java.awt.Font("Tahoma", 0, 14))); // NOI18N
         lst_watershed.setFont(new java.awt.Font("Tahoma", 0, 14)); // NOI18N
         lst_watershed.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
-        jScrollPane1.setViewportView(lst_watershed);
+        jScrollPane2.setViewportView(lst_watershed);
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addContainerGap(25, Short.MAX_VALUE)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addGap(286, 286, 286)
-                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
+                    .addComponent(lbl_select_file)
+                    .addComponent(jScrollPane1)
+                    .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, layout.createSequentialGroup()
+                        .addComponent(paren_l1)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(lbl_origin)
                             .addGroup(layout.createSequentialGroup()
-                                .addComponent(lbl_end_date)
-                                .addGap(137, 137, 137))
-                            .addComponent(txt_end_time, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                                .addComponent(txt_originx, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(comma1, javax.swing.GroupLayout.PREFERRED_SIZE, 5, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(txt_originy, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(paren_r1)))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(paren_l2)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(lbl_extent)
+                            .addGroup(layout.createSequentialGroup()
+                                .addComponent(txt_extentx, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(comma2)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(txt_extenty, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                                .addComponent(paren_r2))))
+                    .addComponent(jScrollPane2)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addComponent(btn_submit)
+                            .addComponent(txt_select_file, javax.swing.GroupLayout.PREFERRED_SIZE, 377, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(btn_select_file))
                     .addGroup(layout.createSequentialGroup()
                         .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                             .addComponent(lbl_start_date)
+                            .addComponent(txt_start_time, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
                             .addGroup(layout.createSequentialGroup()
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
-                                    .addComponent(btn_submit)
-                                    .addComponent(txt_select_file, javax.swing.GroupLayout.PREFERRED_SIZE, 425, javax.swing.GroupLayout.PREFERRED_SIZE))
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addComponent(btn_select_file))
-                            .addComponent(lbl_select_file)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(paren_l1)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(lbl_origin)
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addComponent(txt_originx, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(comma1, javax.swing.GroupLayout.PREFERRED_SIZE, 5, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(txt_originy, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(paren_r1)))
-                                .addGap(105, 105, 105)
-                                .addComponent(paren_l2)
-                                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(lbl_extent)
-                                    .addGroup(layout.createSequentialGroup()
-                                        .addComponent(txt_extentx, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(comma2)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(txt_extenty, javax.swing.GroupLayout.PREFERRED_SIZE, 60, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                                        .addComponent(paren_r2))))
-                            .addComponent(txt_start_time, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE)
-                            .addGroup(layout.createSequentialGroup()
-                                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 305, javax.swing.GroupLayout.PREFERRED_SIZE)
-                                .addGap(18, 18, 18)
-                                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                                    .addComponent(chk_nohrsc_snodas_snowdepth)
-                                    .addComponent(chk_ncep_rtma_precip)
-                                    .addComponent(chk_ncep_rtma_airtemp)
-                                    .addComponent(lbl_product))))
-                        .addGap(25, 25, 25))))
+                                .addComponent(lbl_end_date)
+                                .addGap(70, 70, 70))
+                            .addComponent(txt_end_time, javax.swing.GroupLayout.Alignment.LEADING, javax.swing.GroupLayout.PREFERRED_SIZE, 140, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -194,17 +183,8 @@ public class CumulusRtsUI extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(txt_start_time, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(txt_end_time, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
-                .addGap(30, 30, 30)
-                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(lbl_product)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(chk_ncep_rtma_precip)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(chk_nohrsc_snodas_snowdepth, javax.swing.GroupLayout.PREFERRED_SIZE, 35, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
-                        .addComponent(chk_ncep_rtma_airtemp))
-                    .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 201, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(18, 18, 18)
+                .addComponent(jScrollPane2, javax.swing.GroupLayout.PREFERRED_SIZE, 201, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, 18)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING, false)
                     .addGroup(layout.createSequentialGroup()
@@ -225,15 +205,17 @@ public class CumulusRtsUI extends javax.swing.JFrame {
                             .addComponent(comma1)
                             .addComponent(paren_l1)
                             .addComponent(paren_r1))))
+                .addGap(39, 39, 39)
+                .addComponent(jScrollPane1, javax.swing.GroupLayout.PREFERRED_SIZE, 201, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addGap(18, 18, Short.MAX_VALUE)
                 .addComponent(lbl_select_file)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(txt_select_file, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(btn_select_file))
-                .addGap(26, 26, 26)
+                .addGap(18, 18, 18)
                 .addComponent(btn_submit)
-                .addGap(25, 25, 25))
+                .addContainerGap())
         );
 
         pack();
@@ -279,18 +261,16 @@ public class CumulusRtsUI extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JButton btn_select_file;
     private javax.swing.JButton btn_submit;
-    private javax.swing.JCheckBox chk_ncep_rtma_airtemp;
-    private javax.swing.JCheckBox chk_ncep_rtma_precip;
-    private javax.swing.JCheckBox chk_nohrsc_snodas_snowdepth;
     private javax.swing.JLabel comma1;
     private javax.swing.JLabel comma2;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JLabel lbl_end_date;
     private javax.swing.JLabel lbl_extent;
     private javax.swing.JLabel lbl_origin;
-    private javax.swing.JLabel lbl_product;
     private javax.swing.JLabel lbl_select_file;
     private javax.swing.JLabel lbl_start_date;
+    private javax.swing.JList lst_products;
     private javax.swing.JList lst_watershed;
     private javax.swing.JLabel paren_l1;
     private javax.swing.JLabel paren_l2;
