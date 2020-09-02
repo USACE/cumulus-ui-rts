@@ -260,12 +260,12 @@ class CumulusUI(javax.swing.JFrame):
                     self.dss_path = _path
 
         # Get the basins and products, load JSON, create lists for JList, and create dictionaries
-        self.basin_download = json.loads(self.get_json(url_basins))        
+        self.basin_download = json.loads(self.read_url(url_basins))        
         self.jlist_basins = ["{}:{}".format(b['office_symbol'], b['name']) for b in self.basin_download]
         self.basin_meta = dict(zip(self.jlist_basins, self.basin_download))
         self.jlist_basins.sort()
 
-        self.product_download = json.loads(self.get_json(url_products))
+        self.product_download = json.loads(self.read_url(url_products))
         self.jlist_products = ["{}".format(p['name'].replace("_", " ").title()) for p in self.product_download]
         self.product_meta = dict(zip(self.jlist_products, self.product_download))
         self.jlist_products.sort()
@@ -469,15 +469,18 @@ class CumulusUI(javax.swing.JFrame):
         self.pack()
         self.setLocationRelativeTo(None)
 
-    def get_json(self, url):
+    def read_url(self, url):
         try:
-            urlconnect = java.net.URL(url).openConnection()
+            url = java.net.URL(url)
+            urlconnect = url.openConnection()
             br = java.io.BufferedReader(
                 java.io.InputStreamReader(
                     urlconnect.getInputStream()
                 )
             )
-            s = br.readLine()
+            s = list()
+            while br.readLine():
+                s.append(br.readLine())
             br.close()
         except java.io.IOException as ex:
             raise Exception(ex)
