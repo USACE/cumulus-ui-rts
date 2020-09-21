@@ -11,6 +11,7 @@ import json
 import argparse
 import tempfile
 import subprocess
+import jarray
 
 # HEC
 import hec
@@ -263,6 +264,37 @@ class TimeFormatter():
         ldt = self.parse_local_date_time(t)
         return java.time.ZonedDateTime.of(ldt, z)
 
+# Define something to download the DSS and process
+def download_process_dss(dss_url, dss_out):
+    print "DSS URL: " + dss_url
+    print "DSS OUT: " + dss_out
+
+    hec.heclib.util.Heclib.zset('DSSV', '', 6)
+    dssin = None
+    temp_file = None
+    result = false
+    try:
+        # Create input stream reader to read the file
+        url = java.net.URL(dss_url)
+        urlconnect = url.openConnection()
+        response_code = urlconnect.getResponseCode()
+        if response_code == 200:
+            input_stream = urlconnect.getInputStream()
+            tempfile = java.nio.file.Files.createTempFile("", ".dss")
+            java.nio.file.Files.copy(input_stream,
+                tempfile,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                )
+            result = true
+        else:
+            result = false
+    except java.io.IOException as ex:
+        print "IOException"
+        raise Exception(ex)
+    finally:
+        input_stream.close()
+        return result
+
 # Cumulus UI class
 class CumulusUI(javax.swing.JFrame):
     '''Java Swing used to create a JFrame UI.  On init the objects will be
@@ -499,6 +531,7 @@ class CumulusUI(javax.swing.JFrame):
         try:
             url = java.net.URL(url)
             urlconnect = url.openConnection()
+            # response_code = urlconnect.getResponseCode()
             br = java.io.BufferedReader(
                 java.io.InputStreamReader(
                     urlconnect.getInputStream(), "UTF-8"
@@ -522,6 +555,7 @@ class CumulusUI(javax.swing.JFrame):
             urlconnect.setRequestMethod("POST")
             urlconnect.setRequestProperty("Content-Type", "application/json; UTF-8")
             urlconnect.setRequestProperty("Accept", "application/json")
+            # response_code = urlconnect.getResponseCode()
             # Write to the body
             bw = java.io.BufferedWriter(
                 java.io.OutputStreamWriter(
@@ -538,7 +572,6 @@ class CumulusUI(javax.swing.JFrame):
                 )
             )
             response = br.readLine()
-
             br.close()
         except java.net.MalformedURLException() as ex:
             raise Exception(ex)
@@ -553,7 +586,7 @@ class CumulusUI(javax.swing.JFrame):
             'datetime_start': None,
             'datetime_end': None,
             'basin_id': None,
-            'product_id': None
+            'product_id': None,
             }
 
         try:
@@ -644,14 +677,17 @@ class CumulusUI(javax.swing.JFrame):
         get_result = None
         json_string = None
 
-        # Build the JSON from the UI inputs
+        # Build the JSON from the UI inputs and POST if we have JSON
         json_string = self.json_build()
+
         if not json_string == None:
             post_result = self.http_post(json_string, url_downloads)
             json_post_result = json.loads(post_result)
             id = json_post_result['id']
 
-            id = "5af58e95-e7c1-440e-8395-cbfbcbc2b835"                         # THIS IS FOR TESTING TO GET A 100% result
+            id = "28f11344-e90b-4671-9466-389a26175456"                         # THIS IS FOR TESTING TO GET A 100% result
+
+
         else:
             javax.swing.JOptionPane.showMessageDialog(
                 None,
@@ -660,9 +696,10 @@ class CumulusUI(javax.swing.JFrame):
                 javax.swing.JOptionPane.ERROR_MESSAGE
             )
 
+        # Check the POST result from above and GET the result to process on
         if not post_result == None:
             get_result = self.http_get("/".join([url_downloads, id]))
-            json_get_result = json.loads(get_result)[0]
+            json_get_result = json.loads(get_result)
             print json_get_result                                               # REMOVE AFTER TESTING
         else:
             javax.swing.JOptionPane.showMessageDialog(
@@ -672,22 +709,24 @@ class CumulusUI(javax.swing.JFrame):
                 javax.swing.JOptionPane.ERROR_MESSAGE
             )
 
-
+        # Process the GET result and loop until 100% (file ready for download)
         if not get_result == None:
             timeout = 0
             while timeout < 15:
                 get_result = self.http_get("/".join([url_downloads, id]))
-                json_get_result = json.loads(get_result)[0]
+                json_get_result = json.loads(get_result)
                 progress = json_get_result['progress']                          #100%
                 stat = json_get_result['status']                                #SUCCESS
                 fname = json_get_result['file']                                 # not null
 
+                fname = "https://api.rsgis.dev/cumulus/download/dss/precip_test.dss"        # THIS IS TO TEST
+
                 if int(progress) == 100 and stat == 'SUCCESS':                  # May add file check to make sure not None
-                    print "SUCCESS"
+                    download_process_dss(fname, self.txt_select_file.getText())
                     break
                 else:
-                    print "NOT"
-                Thread.sleep(1000)
+                    print stat
+                    Thread.sleep(2000)
                 timeout += 1
         else:
             javax.swing.JOptionPane.showMessageDialog(
@@ -696,7 +735,6 @@ class CumulusUI(javax.swing.JFrame):
                 "Exception",
                 javax.swing.JOptionPane.ERROR_MESSAGE
             )
-
 
 
 def main():
