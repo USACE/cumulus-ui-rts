@@ -265,7 +265,7 @@ class TimeFormatter():
         return java.time.ZonedDateTime.of(ldt, z)
 
 # Define something to download the DSS and process
-def download_process_dss(dss_url, dss_out):
+def download_dss(dss_url, dss_out):
     print "DSS URL: " + dss_url
     print "DSS OUT: " + dss_out
 
@@ -285,14 +285,23 @@ def download_process_dss(dss_url, dss_out):
                 tempfile,
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING
                 )
-            result = true
+        # Process the DSS file
+            dssin = hec.heclib.dss.HecDss.open(tempfile.toString())
+            for pathname in dssin.getCatalogedPathnames():
+                grid_container = dssin.get(pathname)
+                grid_data = grid_container.getGridData()
+                hec.heclib.grid.GridUtilities.storeGridToDss(dss_out, pathname, grid_data)
+                result = true
         else:
             result = false
     except java.io.IOException as ex:
-        print "IOException"
+        raise Exception(ex)
+    except hec.hecmath.DSSFileException, ex:
         raise Exception(ex)
     finally:
         input_stream.close()
+        if dssin: dssin.done()
+
         return result
 
 # Cumulus UI class
@@ -722,7 +731,7 @@ class CumulusUI(javax.swing.JFrame):
                 fname = "https://api.rsgis.dev/cumulus/download/dss/precip_test.dss"        # THIS IS TO TEST
 
                 if int(progress) == 100 and stat == 'SUCCESS':                  # May add file check to make sure not None
-                    download_process_dss(fname, self.txt_select_file.getText())
+                    download_dss(fname, self.txt_select_file.getText())
                     break
                 else:
                     print stat
