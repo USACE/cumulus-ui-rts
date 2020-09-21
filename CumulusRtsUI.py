@@ -286,11 +286,13 @@ def download_dss(dss_url, dss_out):
                 java.nio.file.StandardCopyOption.REPLACE_EXISTING
                 )
         # Process the DSS file
-            dssin = hec.heclib.dss.HecDss.open(tempfile.toString())
-            for pathname in dssin.getCatalogedPathnames():
-                grid_container = dssin.get(pathname)
-                grid_data = grid_container.getGridData()
-                hec.heclib.grid.GridUtilities.storeGridToDss(dss_out, pathname, grid_data)
+            tempfile_string = tempfile.toString()
+            if os.path.exist(os.path.dirname(tempfile_string)):
+                dssin = hec.heclib.dss.HecDss.open(tempfile_string)
+                for pathname in dssin.getCatalogedPathnames():
+                    grid_container = dssin.get(pathname)
+                    grid_data = grid_container.getGridData()
+                    hec.heclib.grid.GridUtilities.storeGridToDss(dss_out, pathname, grid_data)
                 result = true
         else:
             result = false
@@ -731,7 +733,14 @@ class CumulusUI(javax.swing.JFrame):
                 fname = "https://api.rsgis.dev/cumulus/download/dss/precip_test.dss"        # THIS IS TO TEST
 
                 if int(progress) == 100 and stat == 'SUCCESS':                  # May add file check to make sure not None
-                    download_dss(fname, self.txt_select_file.getText())
+                    result = download_dss(fname, self.txt_select_file.getText())
+                    if not result:
+                        javax.swing.JOptionPane.showMessageDialog(
+                            None,
+                            "Downloading and processing the DSS file failed!",
+                            "Failed DSS Processing",
+                            javax.swing.JOptionPane.ERROR_MESSAGE
+                        )
                     break
                 else:
                     print stat
