@@ -20,8 +20,10 @@ from hec.heclib.util import HecTime
 true = hec.script.Constants.TRUE
 false = hec.script.Constants.FALSE
 script_name = "CumulusRtsUI.py"                                 # This script name because __file__ doesn't work in CAVI env
+cellsize = 2000
 url_basins = "https://api.rsgis.dev/development/cumulus/basins"
 url_products = "https://api.rsgis.dev/development/cumulus/products"
+url_downloads = "https://api.rsgis.dev/development/cumulus/downloads"
 
 '''Try importing hec2 package.  An exception is thrown if not in CWMS CAVI or
 RTS CAVI.  This will determine if this script runs in the CAVI or other environment.
@@ -236,6 +238,31 @@ class FileChooser(javax.swing.JFileChooser):
             f.write(selected_file)
         self.output_path.setText(selected_file)
 
+# Java time formatter
+class TimeFormatter():
+    ''' Java time formatter/builder dealing with different date time formats '''
+    def __init__(self, zid=java.time.ZoneId.of("UTC")):
+        self.zid = zid
+        self.fb = self.format_builder()
+
+    def format_builder(self):
+        fb = java.time.format.DateTimeFormatterBuilder()
+        fb.parseCaseInsensitive()
+        fb.appendPattern("[[d][dd]MMMyyyy[[,] [Hmm[ss]][H:mm[:ss]][HHmm][HH:mm[:ss]]]]" + \
+            "[[d][dd]-[M][MM][MMM]-yyyy[[,] [Hmm[ss]][H:mm[:ss]][HHmm][HH:mm[:ss]]]]" + \
+            "[yyyy-[M][MM][MMM]-[d][dd][['T'][ ][Hmm[ss]][H:mm[:ss]][HHmm[ss]][HH:mm[:ss]]]]")
+        return fb.toFormatter()
+
+    def iso_instant(self):
+        return java.time.format.DateTimeFormatter.ISO_INSTANT
+        
+    def parse_local_date_time(self,t):
+        return java.time.LocalDateTime.parse(t,self.fb)
+
+    def parse_zoned_date_time(self,t, z):
+        ldt = self.parse_local_date_time(t)
+        return java.time.ZonedDateTime.of(ldt, z)
+
 # Cumulus UI class
 class CumulusUI(javax.swing.JFrame):
     '''Java Swing used to create a JFrame UI.  On init the objects will be
@@ -260,12 +287,12 @@ class CumulusUI(javax.swing.JFrame):
                     self.dss_path = _path
 
         # Get the basins and products, load JSON, create lists for JList, and create dictionaries
-        self.basin_download = json.loads(self.read_url(url_basins))        
+        self.basin_download = json.loads(self.http_get(url_basins))        
         self.jlist_basins = ["{}:{}".format(b['office_symbol'], b['name']) for b in self.basin_download]
         self.basin_meta = dict(zip(self.jlist_basins, self.basin_download))
         self.jlist_basins.sort()
 
-        self.product_download = json.loads(self.read_url(url_products))
+        self.product_download = json.loads(self.http_get(url_products))
         self.jlist_products = ["{}".format(p['name'].replace("_", " ").title()) for p in self.product_download]
         self.product_meta = dict(zip(self.jlist_products, self.product_download))
         self.jlist_products.sort()
@@ -314,24 +341,23 @@ class CumulusUI(javax.swing.JFrame):
 
         lbl_end_date.setText("End Date/Time")
 
-        self.txt_select_file.setText("C:\\projects\\CWMS\\database\\grid.dss")
         self.txt_select_file.setToolTipText("FQPN to output file (.dss)")
 
         btn_select_file.setText("...")
         btn_select_file.setToolTipText("Select File...")
         btn_select_file.actionPerformed = self.select_file
 
-        lbl_origin.setText("Origin (x,y):")
+        lbl_origin.setText("Minimum (x,y):")
 
-        lbl_extent.setText("Extents (x,y):")
+        lbl_extent.setText("Maximum (x,y):")
 
-        self.txt_originx.setToolTipText("Origin X")
+        self.txt_originx.setToolTipText("Minimum X")
 
-        self.txt_originy.setToolTipText("Origin Y")
+        self.txt_originy.setToolTipText("Minimum Y")
 
-        self.txt_extentx.setToolTipText("Extent X")
+        self.txt_extentx.setToolTipText("Maximum X")
 
-        self.txt_extenty.setToolTipText("Extent Y")
+        self.txt_extenty.setToolTipText("Maximum Y")
 
         lbl_select_file.setText("Output File Location")
 
@@ -469,20 +495,111 @@ class CumulusUI(javax.swing.JFrame):
         self.pack()
         self.setLocationRelativeTo(None)
 
-    def read_url(self, url):
+    def http_get(self, url):
         try:
             url = java.net.URL(url)
             urlconnect = url.openConnection()
             br = java.io.BufferedReader(
                 java.io.InputStreamReader(
-                    urlconnect.getInputStream()
+                    urlconnect.getInputStream(), "UTF-8"
                 )
             )
             s = br.readLine()
             br.close()
+        except java.net.MalformedURLException() as ex:
+            raise Exception(ex)
         except java.io.IOException as ex:
             raise Exception(ex)
+
         return s
+
+    def http_post(self, json_string, url):
+        try:
+            # Get a connection and set the request properties
+            url = java.net.URL(url)
+            urlconnect = url.openConnection()
+            urlconnect.setDoOutput(true)
+            urlconnect.setRequestMethod("POST")
+            urlconnect.setRequestProperty("Content-Type", "application/json; UTF-8")
+            urlconnect.setRequestProperty("Accept", "application/json")
+            # Write to the body
+            bw = java.io.BufferedWriter(
+                java.io.OutputStreamWriter(
+                    urlconnect.getOutputStream()
+                )
+            )
+            bw.write(json_string)
+            bw.flush()
+            bw.close()
+            # Read the request until file is 100% and then process the DSS file
+            br = java.io.BufferedReader(
+                java.io.InputStreamReader(
+                    urlconnect.getInputStream(), "UTF-8"
+                )
+            )
+            response = br.readLine()
+
+            br.close()
+        except java.net.MalformedURLException() as ex:
+            raise Exception(ex)
+        except java.io.IOException as ex:
+            raise Exception(ex)
+
+        return response
+
+    def json_build(self):
+        # Get the data in JSON
+        conf = {
+            'datetime_start': None,
+            'datetime_end': None,
+            'basin_id': None,
+            'product_id': None
+            }
+
+        try:
+            tf = TimeFormatter()
+            tz = tf.zid
+            st = tf.parse_zoned_date_time(self.txt_start_time.getText(), tz)
+            et = tf.parse_zoned_date_time(self.txt_end_time.getText(), tz)
+        except java.time.format.DateTimeParseException as ex:
+            javax.swing.JOptionPane.showMessageDialog(
+                    None,
+                    "DateTimeParseException\n\nCheck date formats.",
+                    "Exception",
+                    javax.swing.JOptionPane.ERROR_MESSAGE)
+            return None
+
+        conf['datetime_start'] = st.format(tf.iso_instant())
+        conf['datetime_end'] = et.format(tf.iso_instant())
+
+        selected_watershed = self.lst_watershed.getSelectedValue()
+        selected_products = self.lst_product.getSelectedValues()
+
+        if not selected_watershed == None:
+            watershed_id = self.basin_meta[selected_watershed]['id']
+            conf['basin_id'] = watershed_id
+        else:
+            javax.swing.JOptionPane.showMessageDialog(
+                None,
+                "No Watershed Selected",
+                "Exception",
+                javax.swing.JOptionPane.INFORMATION_MESSAGE)
+            return None
+        
+        product_ids = list()
+        if len(selected_products) > 0:
+            for p in selected_products:
+                product_ids.append(self.product_meta[p]['id'])
+                conf['product_id'] = product_ids
+        else:
+            javax.swing.JOptionPane.showMessageDialog(
+                None,
+                "No Products Selected",
+                "Exception",
+                javax.swing.JOptionPane.INFORMATION_MESSAGE)
+            return None
+
+        return json.dumps(conf)
 
     def choose_product(self, event):
         '''The event here is a javax.swing.event.ListSelectionEvent because
@@ -491,7 +608,8 @@ class CumulusUI(javax.swing.JFrame):
         '''
         index = self.lst_product.selectedIndex
         if not event.getValueIsAdjusting():
-            print self.product_meta[self.lst_product.getSelectedValue()]
+            pass
+            # print self.product_meta[self.lst_product.getSelectedValues()]
 
     def choose_watershed(self, event):
         '''The event here is a javax.swing.event.ListSelectionEvent because
@@ -522,10 +640,64 @@ class CumulusUI(javax.swing.JFrame):
 
         event is a java.awt.event.ActionEvent
         '''
-        print self.start_time
-        print self.end_time
-        print self.lst_watershed.getSelectedValue()
-        print self.lst_product.getSelectedValues()
+        post_result = None
+        get_result = None
+        json_string = None
+
+        # Build the JSON from the UI inputs
+        json_string = self.json_build()
+        if not json_string == None:
+            post_result = self.http_post(json_string, url_downloads)
+            json_post_result = json.loads(post_result)
+            id = json_post_result['id']
+
+            id = "5af58e95-e7c1-440e-8395-cbfbcbc2b835"                         # THIS IS FOR TESTING TO GET A 100% result
+        else:
+            javax.swing.JOptionPane.showMessageDialog(
+                None,
+                "POST result is 'None'",
+                "Exception",
+                javax.swing.JOptionPane.ERROR_MESSAGE
+            )
+
+        if not post_result == None:
+            get_result = self.http_get("/".join([url_downloads, id]))
+            json_get_result = json.loads(get_result)[0]
+            print json_get_result                                               # REMOVE AFTER TESTING
+        else:
+            javax.swing.JOptionPane.showMessageDialog(
+                None,
+                "GET result is 'None'",
+                "Exception",
+                javax.swing.JOptionPane.ERROR_MESSAGE
+            )
+
+
+        if not get_result == None:
+            timeout = 0
+            while timeout < 15:
+                get_result = self.http_get("/".join([url_downloads, id]))
+                json_get_result = json.loads(get_result)[0]
+                progress = json_get_result['progress']                          #100%
+                stat = json_get_result['status']                                #SUCCESS
+                fname = json_get_result['file']                                 # not null
+
+                if int(progress) == 100 and stat == 'SUCCESS':                  # May add file check to make sure not None
+                    print "SUCCESS"
+                    break
+                else:
+                    print "NOT"
+                Thread.sleep(1000)
+                timeout += 1
+        else:
+            javax.swing.JOptionPane.showMessageDialog(
+                None,
+                "GET result is 'None'",
+                "Exception",
+                javax.swing.JOptionPane.ERROR_MESSAGE
+            )
+
+
 
 def main():
     ''' The main section to determine is the script is executed within or
